@@ -21,6 +21,7 @@ Cкрипт для предобработки корпуса. Удаляет л�
 - mention_index
 - review_id - 
 - context - номер контекста (одного). Если у упоминия несколько контекстов, то будет несколько строк, где это поле отличается.
+- mention_type - тип сущности, одинаковый с названием таблицы сущностей.
 
 Нормализационные пары - таблица под каждый атрибут+название тезауруса. Вопрос, хранить ли пары для всех уровней или только для нижнего.
 - pair_n_index
@@ -39,12 +40,8 @@ reviews
 
 import json
 import argparse
+from Constants import MENTIONS_TYPE_NAMES, SPECIAL_TABLE_NAMES, THESAURI_TABLE_NAMES
 
-MENTIONS_TYPE_NAMES = ["Drugname", "Drugform", "MedMaker", "SourceInfodrug", "Drugclass", "DrugBrand", "Route","Duration", "Dosage", "Frequency", 
-                      "ADR", "Note",
-                      "Diseasename", "Indication", "BNE-Pos", "NegatedADE", "Worse", "ADE-Neg"]
-SPECIAL_TABLE_NAMES = ["Mention-Review-Context", "Mention-Concept", "Reviews"]
-THESAURI_TABLE_NAMES = ["MedDRA", "ATC", "ICD-10", "FormsDictionary", "SourceDictionary"]
 
 def From_artemjson_to_table(artemjson, tables):
     """
@@ -93,54 +90,48 @@ def From_artemjson_to_table(artemjson, tables):
             tables["Mention-Review-Context"]["review_id"].append(review_id)
             tables["Mention-Review-Context"]["context"].append(int(c))
     
-def Main(mode, input_file, input_format, output_folder):
-    if mode in ["minimize", "full"]:
-        pass
-
-    if mode in ["to_records", "full"]:
-        tables_records_dict = {}
-        for table_name in MENTIONS_TYPE_NAMES:
-            tables_records_dict[table_name] = {
-                "mention_index": [],
-                "text": [],
-                "review_id": []
-            }
-            if table_name=="Drugname":
-                tables_records_dict[table_name]["MedFrom"] = []
-            if table_name=="MedMaker":
-                tables_records_dict[table_name]["MedMaker"] = []
-        tables_records_dict["Reviews"] = {
-            "review_id" : [],
-            "review_url" : []
+def Main(input_file, input_format, output_folder):
+    tables_records_dict = {}
+    for table_name in MENTIONS_TYPE_NAMES:
+        tables_records_dict[table_name] = {
+            "mention_index": [],
+            "text": []
         }
-        tables_records_dict["Mention-Review-Context"] = {
-            "triplet_mrc_index" : [],
-            "mention_index" : [],
-            "review_id" : [],
-            "context" : []
-        }
+        if table_name=="Drugname":
+            tables_records_dict[table_name]["MedFrom"] = []
+        if table_name=="MedMaker":
+            tables_records_dict[table_name]["MedMaker"] = []
+    tables_records_dict["Reviews"] = {
+        "review_id" : [],
+        "review_url" : []
+    }
+    tables_records_dict["Mention-Review-Context"] = {
+        "triplet_mrc_index" : [],
+        "mention_index" : [],
+        "review_id" : [],
+        "context" : []
+    }
 
-        if input_format=="artemjsonlines":
-            with open(input_file, "r") as inf:
-                for line in inf:
-                    docData = json.loads(line)
-                    From_artemjson_to_table(docData, tables_records_dict)
-        else:
-            raise ValueError(f"Unrecognized input file format: {input_format}")
+    if input_format=="artemjsonlines":
+        with open(input_file, "r") as inf:
+            for line in inf:
+                docData = json.loads(line)
+                From_artemjson_to_table(docData, tables_records_dict)
+    else:
+        raise ValueError(f"Unrecognized input file format: {input_format}")
 
-        for table_name, table in tables_records_dict.items():
-            with open(output_folder + f"/{table_name}.json", "w") as outf:
-                json.dump(table, outf)
+    for table_name, table in tables_records_dict.items():
+        with open(output_folder + f"/{table_name}.json", "w") as outf:
+            json.dump(table, outf)
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser(
                     prog = 'PrepareCorpus',
                     description = 'Cкрипт для предобработки корпуса. Удаляет лишнее и переводит какой-то из входных форматов в один. ')
-    parser.add_argument('--mode', choices=["minimize", "to_records", "full"], default="full", type=str, help="что нужно сделать, minimize - только уменьшить объем данных и пересохранить, to_records - переделать уменьшенные данные в таблицы, full - сделать и то и другое")
     parser.add_argument('--input_file', type=str, help="Путь к файлу с разобранными отзывами в json формате")
     parser.add_argument('--input_format', type=str, choices=["artemjsonlines", "sagnlpjson"], help="Формат входных файлов")
     parser.add_argument('--output_folder', type=str, help="Папка, куда сохранять таблицы для БД")
     args = parser.parse_args()
-    Main(args.mode, args.input_file, args.input_format, args.output_folder)
+    Main(args.input_file, args.input_format, args.output_folder)
                                                      
     
