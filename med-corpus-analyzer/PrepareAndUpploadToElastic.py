@@ -69,9 +69,9 @@ keywordField = {
 
 def get_elastic_client():
     # простой вариант для отладки с незащищённым эластиком
-    esClient = Elasticsearch(timeout=30)
+    #esClient = Elasticsearch(timeout=30)
     # с использованием пароля и сертификата
-    #esClient = Elasticsearch(timeout=30, http_auth=("elastic", "s+qTmEEAWQQdEjbGIJlv"), use_ssl=True, verify_certs=True, ca_certs="/home/nn/packages/elasticsearch-8.3.3/config/certs/http_ca.crt")
+    esClient = Elasticsearch(timeout=30, http_auth=("elastic", "s+qTmEEAWQQdEjbGIJlv"), use_ssl=True, verify_certs=True, ca_certs="/home/nn/packages/elasticsearch-8.3.3/config/certs/http_ca.crt")
     return esClient
 
 class medreview_doctype(es_dsl.Document):

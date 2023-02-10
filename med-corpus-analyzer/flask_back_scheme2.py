@@ -12,14 +12,13 @@ ELASTIC_PORT=9200
 ELASTIC_INDEX="med800k_scheme2"
 ROWS_COUNT=100
 
-es = elasticsearch.Elasticsearch(hosts=[{'host': ELASTIC_HOST, 'port': ELASTIC_PORT}])
-#es = elasticsearch.Elasticsearch(hosts=[{'host': ELASTIC_HOST, 'port': ELASTIC_PORT}], http_auth=("elastic", "s+qTmEEAWQQdEjbGIJlv"), use_ssl=True, verify_certs=True, ca_certs="/home/nn/packages/elasticsearch-8.3.3/config/certs/http_ca.crt")
+es = elasticsearch.Elasticsearch(hosts=[{'host': ELASTIC_HOST, 'port': ELASTIC_PORT}], http_auth=("elastic", "s+qTmEEAWQQdEjbGIJlv"), use_ssl=True, verify_certs=True, ca_certs="/home/nn/packages/elasticsearch-8.3.3/config/certs/http_ca.crt")
 
 @app.route('/', methods=['GET', 'POST'])
 def hello():
     return("hello")
 
-@app.route('/scheme2_request', methods=['GET', 'POST'])
+@app.route('/scheme2_request/', methods=['GET', 'POST'])
 def getTextFromReactReturnJson():
     print("QUERY")
     print(json.loads(request.get_data().decode('utf8').replace("'", '"')))
@@ -63,4 +62,4 @@ if __name__ == '__main__':
     
     #app.run(debug=True)
     #app.run(host='127.0.0.1', port=3000, threaded = True, debug=True)
-    app.run(host='localhost', port=5000, threaded = True, debug=False)
+    app.run(host='localhost', port=8086, threaded = True, debug=False)

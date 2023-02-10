@@ -18,7 +18,7 @@ const requestFunction = (input) => {
         "Review_urls": ["dsfdf"],
     }]
     //return tablePseudoData
-    return fetch('http://localhost:5000/scheme2_request', {
+    return fetch('./scheme2_request/', {
         method: 'POST',
         body: JSON.stringify(input)
         
