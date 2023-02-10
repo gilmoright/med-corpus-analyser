@@ -215,9 +215,11 @@ def artemjsonlines_to_scheme2(input_file_path, indexName):
                     mention_type = mention["MedEntityType"]
 
                 if mention_type=="Drugname":
-                    drugnames.add(mention["text"].lower())
+                    #drugnames.add(mention["text"].lower())
+                    drugnames.add(mention["norm_form"].lower())
                 elif mention_type=="Diseasename":
-                    diseasenames.add(mention["text"].lower())
+                    #diseasenames.add(mention["text"].lower())
+                    diseasenames.add(mention["norm_form"].lower())
                 elif mention_type=="Indication":
                     indications.add(mention["text"].lower())
                     
@@ -287,13 +289,18 @@ def sagnlpjsonlines_to_scheme2(input_file_path, indexName):
             if l_i % 1000 == 0:
                 print(l_i, len(table_dict.keys()))
             l_i += 1
-            artemjson = json.loads(line)
-            artemjson.pop("text")
-            artemjson.pop("text_id")   
+            sagnlpjson = json.loads(line)
+            if "text" in sagnlpjson:
+                sagnlpjson.pop("text")
+            if "text_id" in sagnlpjson:
+                sagnlpjson.pop("text_id")   
             adr_flag, neg_flag, negated_flag, pos_flag = False, False, False, False
             drugnames, diseasenames, indications, adrs = set(), set(), set(), set()
-            for m_i, mention in artemjson["entities"].items():
-                tag = mention["tag"][0]  # вроде у всех по одному только предсказано
+            for m_i, mention in sagnlpjson["entities"].items():
+                if type(mention["tag"])==list:
+                    tag = mention["tag"][0]  # вроде у всех по одному только предсказано
+                elif type(mention["tag"])==str:
+                    tag = mention["tag"]
                 if "Domestic" in tag or "Foreign" in tag:
                     continue
                 mention_type = None
@@ -307,9 +314,11 @@ def sagnlpjsonlines_to_scheme2(input_file_path, indexName):
                     print(mention_type)
                 assert mention_type in MENTIONS_TYPE_NAMES
                 if mention_type=="Drugname":
-                    drugnames.add(mention["text"].lower())
+                    #drugnames.add(mention["text"].lower())
+                    drugnames.add(mention["norm_form"].lower())
                 elif mention_type=="Diseasename":
-                    diseasenames.add(mention["text"].lower())
+                    #diseasenames.add(mention["text"].lower())
+                    diseasenames.add(mention["norm_form"].lower())
                 elif mention_type=="Indication":
                     indications.add(mention["text"].lower())
                     
