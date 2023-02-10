@@ -13,6 +13,7 @@ ELASTIC_INDEX="med800k_scheme2"
 ROWS_COUNT=100
 
 es = elasticsearch.Elasticsearch(hosts=[{'host': ELASTIC_HOST, 'port': ELASTIC_PORT}])
+#es = elasticsearch.Elasticsearch(hosts=[{'host': ELASTIC_HOST, 'port': ELASTIC_PORT}], http_auth=("elastic", "s+qTmEEAWQQdEjbGIJlv"), use_ssl=True, verify_certs=True, ca_certs="/home/nn/packages/elasticsearch-8.3.3/config/certs/http_ca.crt")
 
 @app.route('/', methods=['GET', 'POST'])
 def hello():
@@ -45,7 +46,10 @@ def getTextFromReactReturnJson():
     listed = []
     for hit in search_request[0:ROWS_COUNT]:
     #for hit in s.scan():
-        listed.append(hit.to_dict())
+        hit = hit.to_dict()
+        # это на фронте бы делать, но я хз как
+        hit["Review_urls"] = ", ".join(hit["Review_urls"])
+        listed.append(hit)
     print("RESPONSE")
     print(listed)
     response = jsonify(listed)
@@ -59,4 +63,4 @@ if __name__ == '__main__':
     
     #app.run(debug=True)
     #app.run(host='127.0.0.1', port=3000, threaded = True, debug=True)
-    app.run(host='172.19.140.130', port=5000, threaded = True, debug=False)
+    app.run(host='localhost', port=5000, threaded = True, debug=False)

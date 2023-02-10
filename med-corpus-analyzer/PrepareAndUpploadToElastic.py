@@ -67,6 +67,13 @@ keywordField = {
     "type":     "keyword"  # analyzer? почему-то не работает тот же, что и для текста. надо бы выяснить.
 }
 
+def get_elastic_client():
+    # простой вариант для отладки с незащищённым эластиком
+    esClient = Elasticsearch(timeout=30)
+    # с использованием пароля и сертификата
+    #esClient = Elasticsearch(timeout=30, http_auth=("elastic", "s+qTmEEAWQQdEjbGIJlv"), use_ssl=True, verify_certs=True, ca_certs="/home/nn/packages/elasticsearch-8.3.3/config/certs/http_ca.crt")
+    return esClient
+
 class medreview_doctype(es_dsl.Document):
     fields = {"text": textField, "kw": keywordField}
     Drugname = es_dsl.Text(fields = fields)  # fields = fields
@@ -92,7 +99,7 @@ class medreview_doctype(es_dsl.Document):
 
     
 def artemjsonlines_to_medreview_doctype(input_file_path, indexName):
-    esClient = Elasticsearch(timeout=30)
+    esClient = get_elastic_client()
     index = es_dsl.Index(indexName, using=esClient)
     index.delete(ignore=404)
     index.settings(number_of_shards=1, number_of_replicas=0, analysis = analysis_1)
@@ -174,7 +181,7 @@ class scheme2_doctype(es_dsl.Document):
     Review_urls = es_dsl.Keyword()
 
 def artemjsonlines_to_scheme2(input_file_path, indexName):
-    esClient = Elasticsearch(timeout=30)
+    esClient = get_elastic_client()
     index = es_dsl.Index(indexName, using=esClient)
     index.delete(ignore=404)
     index.settings(number_of_shards=1, number_of_replicas=0, analysis = analysis_1)
@@ -264,7 +271,7 @@ def artemjsonlines_to_scheme2(input_file_path, indexName):
             elasticdoc.save(using=esClient)
 
 def sagnlpjsonlines_to_scheme2(input_file_path, indexName):
-    esClient = Elasticsearch(timeout=30)
+    esClient = get_elastic_client()
     index = es_dsl.Index(indexName, using=esClient)
     index.delete(ignore=404)
     index.settings(number_of_shards=1, number_of_replicas=0, analysis = analysis_1)
@@ -280,7 +287,7 @@ def sagnlpjsonlines_to_scheme2(input_file_path, indexName):
         "review_count": 0, 
         "review_urls": []
     })
-    with open("../data/raw/ner_800k_jsonl/urls.json", "r") as f:
+    with open("../Data/urls.json", "r") as f:
         urld_list = json.load(f)
     with open(input_file_path, "r") as inf:
         l_i = 0
