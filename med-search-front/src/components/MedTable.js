@@ -24,7 +24,7 @@ function MedTable({ tableData }) {
                             <td>{data.Indications}</td>
                             <td>{data.ADRs}</td>
                             <td>{data.ADR_reviews_count}</td>
-                            <td>{data.Pos_reviews_countg}</td>
+                            <td>{data.Pos_reviews_count}</td>
                             <td>{data.Neg_reviews_count}</td>
                             <td>{data.Negated_ADE_reviews_count}</td>
                             <td>{data.Review_count}</td>
