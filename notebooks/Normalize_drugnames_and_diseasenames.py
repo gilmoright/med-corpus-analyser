@@ -2,8 +2,10 @@ import pymorphy2
 import json
 from collections import defaultdict
 import logging
+from pymystem3 import Mystem
 
-morph = pymorphy2.MorphAnalyzer()
+#morph = pymorphy2.MorphAnalyzer()
+morph = Mystem()
 
 norm_and_variations_drug = defaultdict(set)
 norm_and_variations_disease = defaultdict(set)
@@ -16,8 +18,10 @@ with open("../data/raw/ner_800k_jsonl/short_ner_800k.jsonl", "r") as f, open("..
         docData = json.loads(line)
         for k, v in docData["entities"].items():
             if "Drugname" in v["tag"] or "Diseasename" in v["tag"]:
+                """
+                # pymorphy2
                 norm_form = []
-                for word in v["text"].split():
+                for word in v["text"].lower().split():
                     parse = morph.parse(word)
                     norm_word = None
                     for variant in parse:
@@ -28,10 +32,12 @@ with open("../data/raw/ner_800k_jsonl/short_ner_800k.jsonl", "r") as f, open("..
                         norm_word = parse[0].normal_form
                     norm_form.append(norm_word)
                 v["norm_form"] = " ".join(norm_form)
+                """
+                v["norm_form"] = "".join(morph.lemmatize(v["text"].lower())).strip()
                 if "Drugname" in v["tag"]:
-                    norm_and_variations_drug[v["norm_form"]].add(v["text"])
+                    norm_and_variations_drug[v["norm_form"]].add(v["text"].lower())
                 else:
-                    norm_and_variations_disease[v["norm_form"]].add(v["text"])
+                    norm_and_variations_disease[v["norm_form"]].add(v["text"].lower())
         outf.write(json.dumps(docData) + "\n")
 
 for k, v in norm_and_variations_drug.items():

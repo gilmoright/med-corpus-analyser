@@ -168,19 +168,24 @@ def artemjsonlines_to_medreview_doctype(input_file_path, indexName):
             elasticdoc.save(using=esClient)
 
 class scheme2_doctype(es_dsl.Document):
-    fields = {"text": textField}
-    Drugnames = es_dsl.Text(fields = fields)  # fields = fields
-    Diseasenames = es_dsl.Text(fields = fields)
-    Indications = es_dsl.Text(fields = fields)
-    ADRs = es_dsl.Text(fields = fields)
+    #fields = {"text": textField}
+    #fields2 = {"kw": keywordField}
+    Drugnames = es_dsl.Text()  # fields = fields
+    Diseasenames = es_dsl.Text()
+    Indications_text = es_dsl.Text()
+    ADRs_text = es_dsl.Text()
+    Indications_meddra = es_dsl.Keyword()
+    ADRs_meddra = es_dsl.Keyword()
+    
     ADR_reviews_count = es_dsl.Integer()
     Negated_ADE_reviews_count = es_dsl.Integer()
     Neg_reviews_count = es_dsl.Integer()
-    Pos_reviews_countg = es_dsl.Integer()
+    Pos_reviews_count = es_dsl.Integer()
     Review_count = es_dsl.Integer()
     Review_urls = es_dsl.Keyword()
 
 def artemjsonlines_to_scheme2(input_file_path, indexName):
+    raise ValueErrot("Deprecated! Use sagnlpjsonlines_to_scheme2() or update this one to be similar to sagnlpjsonlines_to_scheme2() ")
     esClient = get_elastic_client()
     index = es_dsl.Index(indexName, using=esClient)
     index.delete(ignore=404)
@@ -190,6 +195,8 @@ def artemjsonlines_to_scheme2(input_file_path, indexName):
     index.document(scheme2_doctype)
     scheme2_doctype.init(using=esClient)
     table_dict = defaultdict(lambda : {
+        "indications_text": set(),
+        "adrs_text": set(),
         "ADR_reviews_count": 0, 
         "Negated_ADE_reviews_count": 0, 
         "Neg_reviews_count": 0, 
@@ -211,16 +218,19 @@ def artemjsonlines_to_scheme2(input_file_path, indexName):
             url = f"http://otzovik.com/review_{review_id}.html"
             review_id = int(review_id)
             adr_flag, neg_flag, negated_flag, pos_flag = False, False, False, False
-            drugnames, diseasenames, indications, adrs = set(), set(), set(), set()
+            drugnames, diseasenames, indications_meddra, adrs_meddra = set(), set(), set(), set()
+            indications_text, adrs_text = set(), set()
             for mention in artemjson["objects"]["MedEntity"]:
                 mention_type = None
+                if re.search("[а-яА-Яa-zA-ZёЁ]{3,}", mention["text"]) is None:
+                    continue
                 if mention["MedEntityType"]=="Medication":
                     mention_type = mention["MedType"]
                 elif mention["MedEntityType"]=="Disease":
                     mention_type = mention["DisType"]
                 else:
                     mention_type = mention["MedEntityType"]
-
+                    
                 if mention_type=="Drugname":
                     #drugnames.add(mention["text"].lower())
                     drugnames.add(mention["norm_form"].lower())
@@ -228,10 +238,12 @@ def artemjsonlines_to_scheme2(input_file_path, indexName):
                     #diseasenames.add(mention["text"].lower())
                     diseasenames.add(mention["norm_form"].lower())
                 elif mention_type=="Indication":
-                    indications.add(mention["text"].lower())
+                    indications_text.add(mention["text"].lower())
+                    indications_meddra.add(mention["MedDRA_code"][0].lower())
                     
                 if mention_type=="ADR":
-                    adrs.add(mention["text"])
+                    adrs_text.add(mention["text"].lower())
+                    adrs_meddra.add(mention["MedDRA_code"][0].lower())
                     adr_flag = True
                 elif mention_type=="BNE-Pos":
                     pos_flag = True
@@ -241,31 +253,35 @@ def artemjsonlines_to_scheme2(input_file_path, indexName):
                     neg_flag = True
             drugnames = tuple(sorted(list(drugnames))) 
             diseasenames = tuple(sorted(list(diseasenames)))
-            indications = tuple(sorted(list(indications)))
-            adrs = tuple(sorted(list(adrs)))
+            indications_meddra = tuple(sorted(list(indications_meddra)))
+            adrs_meddra = tuple(sorted(list(adrs_meddra)))
             if mention_type=="Drugname":
                 drugnames.add(mention["text"].lower())
             if adr_flag:
-                table_dict[(drugnames, diseasenames, indications, adrs)]["ADR_reviews_count"] += 1
+                table_dict[(drugnames, diseasenames, indications_meddra, adrs_meddra)]["ADR_reviews_count"] += 1
             if neg_flag:
-                table_dict[(drugnames, diseasenames, indications, adrs)]["Neg_reviews_count"] += 1
+                table_dict[(drugnames, diseasenames, indications_meddra, adrs_meddra)]["Neg_reviews_count"] += 1
             if negated_flag:
-                table_dict[(drugnames, diseasenames, indications, adrs)]["Negated_ADE_reviews_count"] += 1
+                table_dict[(drugnames, diseasenames, indications_meddra, adrs_meddra)]["Negated_ADE_reviews_count"] += 1
             if pos_flag:
-                table_dict[(drugnames, diseasenames, indications, adrs)]["Pos_reviews_count"] += 1
-            table_dict[(drugnames, diseasenames, indications, adrs)]["review_count"] += 1
-            table_dict[(drugnames, diseasenames, indications, adrs)]["review_urls"].append(url)
+                table_dict[(drugnames, diseasenames, indications_meddra, adrs_meddra)]["Pos_reviews_count"] += 1
+            table_dict[(drugnames, diseasenames, indications_meddra, adrs_meddra)]["review_count"] += 1
+            table_dict[(drugnames, diseasenames, indications_meddra, adrs_meddra)]["review_urls"].append(url)
+            table_dict[(drugnames, diseasenames, indications_meddra, adrs_meddra)]["indications_text"].update(indications_text)
+            table_dict[(drugnames, diseasenames, indications_meddra, adrs_meddra)]["adrs_text"].update(adrs_text)
 
-        for (drugnames, diseasenames, indications, adrs), stat in table_dict.items():
+        for (drugnames, diseasenames, indications_meddra, adrs_meddra), stat in table_dict.items():
             elasticdoc = scheme2_doctype()
             setattr(elasticdoc, "Drugnames", ", ".join(drugnames))
             setattr(elasticdoc, "Diseasenames", ", ".join(diseasenames))
-            setattr(elasticdoc, "Indications", ", ".join(indications))
-            setattr(elasticdoc, "ADRs", ", ".join(adrs))
+            setattr(elasticdoc, "Indications_text", ", ".join(indications))
+            setattr(elasticdoc, "ADRs_text", ", ".join(adrs))
+            setattr(elasticdoc, "Indications_meddra", indications_meddra)
+            setattr(elasticdoc, "ADRs_meddra", adrs_meddra)
             setattr(elasticdoc, "ADR_reviews_count", stat["ADR_reviews_count"])
             setattr(elasticdoc, "Negated_ADE_reviews_count", stat["Negated_ADE_reviews_count"])
             setattr(elasticdoc, "Neg_reviews_count", stat["Neg_reviews_count"])
-            setattr(elasticdoc, "Pos_reviews_countg", stat["Pos_reviews_count"])
+            setattr(elasticdoc, "Pos_reviews_count", stat["Pos_reviews_count"])
             setattr(elasticdoc, "Review_count", stat["review_count"])
             setattr(elasticdoc, "Review_urls", stat["review_urls"])
             elasticdoc.save(using=esClient)
@@ -280,6 +296,8 @@ def sagnlpjsonlines_to_scheme2(input_file_path, indexName):
     index.document(scheme2_doctype)
     scheme2_doctype.init(using=esClient)
     table_dict = defaultdict(lambda : {
+        "indications_text": set(),
+        "adrs_text": set(),
         "ADR_reviews_count": 0, 
         "Negated_ADE_reviews_count": 0, 
         "Neg_reviews_count": 0, 
@@ -287,7 +305,7 @@ def sagnlpjsonlines_to_scheme2(input_file_path, indexName):
         "review_count": 0, 
         "review_urls": []
     })
-    with open("../Data/urls.json", "r") as f:
+    with open("../data/raw/ner_800k_jsonl/urls.json", "r") as f:
         urld_list = json.load(f)
     with open(input_file_path, "r") as inf:
         l_i = 0
@@ -302,8 +320,11 @@ def sagnlpjsonlines_to_scheme2(input_file_path, indexName):
             if "text_id" in sagnlpjson:
                 sagnlpjson.pop("text_id")   
             adr_flag, neg_flag, negated_flag, pos_flag = False, False, False, False
-            drugnames, diseasenames, indications, adrs = set(), set(), set(), set()
+            drugnames, diseasenames, indications_meddra, adrs_meddra = set(), set(), set(), set()
+            indications_text, adrs_text = set(), set()
             for m_i, mention in sagnlpjson["entities"].items():
+                if re.search("[а-яА-Яa-zA-ZёЁ]{3,}", mention["text"]) is None:
+                    continue
                 if type(mention["tag"])==list:
                     tag = mention["tag"][0]  # вроде у всех по одному только предсказано
                 elif type(mention["tag"])==str:
@@ -327,10 +348,12 @@ def sagnlpjsonlines_to_scheme2(input_file_path, indexName):
                     #diseasenames.add(mention["text"].lower())
                     diseasenames.add(mention["norm_form"].lower())
                 elif mention_type=="Indication":
-                    indications.add(mention["text"].lower())
+                    indications_text.add(mention["text"].lower())
+                    indications_meddra.add(mention["MedDRA_code"][0].lower())
                     
                 if mention_type=="ADR":
-                    adrs.add(mention["text"])
+                    adrs_text.add(mention["text"].lower())
+                    adrs_meddra.add(mention["MedDRA_code"][0].lower())
                     adr_flag = True
                 elif mention_type=="BNE-Pos":
                     pos_flag = True
@@ -340,36 +363,41 @@ def sagnlpjsonlines_to_scheme2(input_file_path, indexName):
                     neg_flag = True
             drugnames = tuple(sorted(list(drugnames))) 
             diseasenames = tuple(sorted(list(diseasenames)))
-            indications = tuple(sorted(list(indications)))
-            adrs = tuple(sorted(list(adrs)))
+            indications_meddra = tuple(sorted(list(indications_meddra)))
+            adrs_meddra = tuple(sorted(list(adrs_meddra)))
             # вряд ли есть смысл смотреть отзывы без препаратов (ну или с невыделенными)
             if len(drugnames)==0:
                 continue
             if adr_flag:
-                table_dict[(drugnames, diseasenames, indications, adrs)]["ADR_reviews_count"] += 1
+                table_dict[(drugnames, diseasenames, indications_meddra, adrs_meddra)]["ADR_reviews_count"] += 1
             if neg_flag:
-                table_dict[(drugnames, diseasenames, indications, adrs)]["Neg_reviews_count"] += 1
+                table_dict[(drugnames, diseasenames, indications_meddra, adrs_meddra)]["Neg_reviews_count"] += 1
             if negated_flag:
-                table_dict[(drugnames, diseasenames, indications, adrs)]["Negated_ADE_reviews_count"] += 1
+                table_dict[(drugnames, diseasenames, indications_meddra, adrs_meddra)]["Negated_ADE_reviews_count"] += 1
             if pos_flag:
-                table_dict[(drugnames, diseasenames, indications, adrs)]["Pos_reviews_count"] += 1
-            table_dict[(drugnames, diseasenames, indications, adrs)]["review_count"] += 1
-            table_dict[(drugnames, diseasenames, indications, adrs)]["review_urls"].append(url)
+                table_dict[(drugnames, diseasenames, indications_meddra, adrs_meddra)]["Pos_reviews_count"] += 1
+            table_dict[(drugnames, diseasenames, indications_meddra, adrs_meddra)]["review_count"] += 1
+            table_dict[(drugnames, diseasenames, indications_meddra, adrs_meddra)]["review_urls"].append(url)
+            table_dict[(drugnames, diseasenames, indications_meddra, adrs_meddra)]["indications_text"].update(indications_text)
+            table_dict[(drugnames, diseasenames, indications_meddra, adrs_meddra)]["adrs_text"].update(adrs_text)
+            
         print("Unique tuples (rows for db):", len(table_dict.keys()))
         t_i = 0
-        for (drugnames, diseasenames, indications, adrs), stat in table_dict.items():
+        for (drugnames, diseasenames, indications_meddra, adrs_meddra), stat in table_dict.items():
             if t_i % 1000 == 0:
                 print(t_i)
             t_i += 1
             elasticdoc = scheme2_doctype()
             setattr(elasticdoc, "Drugnames", ", ".join(drugnames))
             setattr(elasticdoc, "Diseasenames", ", ".join(diseasenames))
-            setattr(elasticdoc, "Indications", ", ".join(indications))
-            setattr(elasticdoc, "ADRs", ", ".join(adrs))
+            setattr(elasticdoc, "Indications_text", ", ".join(list(stat["indications_text"])) if len(stat["indications_text"])>0 else None)
+            setattr(elasticdoc, "ADRs_text", ", ".join(list(stat["adrs_text"])) if len(stat["adrs_text"])>0 else None)
+            setattr(elasticdoc, "Indications_kw", indications_meddra if len(indications_meddra)>0 else None)
+            setattr(elasticdoc, "ADRs_kw", adrs_meddra if len(adrs_meddra)>0 else None)
             setattr(elasticdoc, "ADR_reviews_count", stat["ADR_reviews_count"])
             setattr(elasticdoc, "Negated_ADE_reviews_count", stat["Negated_ADE_reviews_count"])
             setattr(elasticdoc, "Neg_reviews_count", stat["Neg_reviews_count"])
-            setattr(elasticdoc, "Pos_reviews_countg", stat["Pos_reviews_count"])
+            setattr(elasticdoc, "Pos_reviews_count", stat["Pos_reviews_count"])
             setattr(elasticdoc, "Review_count", stat["review_count"])
             setattr(elasticdoc, "Review_urls", stat["review_urls"])
             elasticdoc.save(using=esClient)
