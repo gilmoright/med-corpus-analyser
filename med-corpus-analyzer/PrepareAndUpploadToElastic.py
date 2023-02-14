@@ -305,12 +305,9 @@ def sagnlpjsonlines_to_scheme2(input_file_path, indexName):
         "review_count": 0, 
         "review_urls": []
     })
-    with open("../data/raw/ner_800k_jsonl/urls.json", "r") as f:
-        urld_list = json.load(f)
     with open(input_file_path, "r") as inf:
         l_i = 0
         for line in inf:
-            url = urld_list[l_i]
             if l_i % 1000 == 0:
                 print(l_i, len(table_dict.keys()))
             l_i += 1
@@ -318,7 +315,8 @@ def sagnlpjsonlines_to_scheme2(input_file_path, indexName):
             if "text" in sagnlpjson:
                 sagnlpjson.pop("text")
             if "text_id" in sagnlpjson:
-                sagnlpjson.pop("text_id")   
+                sagnlpjson.pop("text_id") 
+            url = sagnlpjson["meta"]["url"]
             adr_flag, neg_flag, negated_flag, pos_flag = False, False, False, False
             drugnames, diseasenames, indications_meddra, adrs_meddra = set(), set(), set(), set()
             indications_text, adrs_text = set(), set()
